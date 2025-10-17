@@ -41,13 +41,13 @@ p {
 .button-container {
   display: flex;
   flex-direction: column;
-  gap: 12px; /* Reduced spacing for better proportion */
+  gap: 12px; 
   margin-top: 30px;
 }
 
 button {
   width: 75%;
-  padding: 12px 0; /* Slightly smaller buttons */
+  padding: 12px 0; 
   border-radius: 15px;
   font-size: 0.95rem;
   font-weight: 600;
