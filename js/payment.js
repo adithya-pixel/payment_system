@@ -1,84 +1,62 @@
-const upiID = "adithyasiju9@okaxis"; 
-const name = "AdithyaSiju";
-const amount = 1;
-const qrExpiryMinutes = 5;
+const RAZORPAY_KEY = "rzp_test_1DP5mmOlF5G5ag";
 
-const orders = [];
-let currentOrder;
+let orders = [];
+let currentOrder = null;
 
-function generateOrder() {
-  const orderId = "ORD_" + Date.now(); 
-  const referenceId = "REF_" + Date.now(); 
-  const upiLink = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(name)}&am=${amount.toFixed(2)}&cu=INR&tn=${orderId}&tr=${referenceId}`;
-
-  orders.push({
+// Create a new order
+function createOrder() {
+  const orderId = "ORD_" + Date.now();
+  currentOrder = {
     orderId,
-    referenceId,
-    amount,
+    amount: 1,
     status: "Pending",
     timestamp: new Date().toLocaleString()
-  });
-
-  const qrURL = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiLink)}`;
-  document.getElementById("qr").innerHTML = `
-    <p>Or scan this QR to pay:</p>
-    <img src="${qrURL}" alt="UPI Payment QR Code">
-  `;
-
-  startTimer(qrExpiryMinutes);
-
-  return { orderId, referenceId, upiLink };
+  };
+  orders.push(currentOrder);
 }
 
-let timerInterval;
-function startTimer(minutes) {
-  clearInterval(timerInterval);
-  let timeLeft = minutes * 60; 
-  const timerEl = document.getElementById("timer");
-  timerEl.innerText = `QR expires in: ${minutes}:00`;
-
-  timerInterval = setInterval(() => {
-    timeLeft--;
-    const min = Math.floor(timeLeft / 60);
-    const sec = timeLeft % 60;
-    timerEl.innerText = `QR expires in: ${min}:${sec < 10 ? "0"+sec : sec}`;
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      timerEl.innerText = "QR expired! Refresh page to generate new QR.";
-      document.getElementById("status").innerText = "";
-      document.getElementById("qr").innerHTML = "";
+// Open Razorpay Checkout for UPI
+function openUPIPayment() {
+  const options = {
+    key: RAZORPAY_KEY,
+    amount: currentOrder.amount * 100, // in paise
+    currency: "INR",
+    name: "Mythic Coin",
+    description: "One digital blessing coin ✨",
+    prefill: {
+      name: "Adithya Siju",
+      email: "test@example.com",
+      contact: "9999999999"
+    },
+    method: {
+      upi: true
+    },
+    handler: function (response) {
+      currentOrder.status = "Paid ✅";
+      currentOrder.razorpayPaymentId = response.razorpay_payment_id;
+      document.getElementById("status").innerText = "Payment successful! ✅";
+      console.log("Order database:", orders);
+    },
+    modal: {
+      escape: true
+    },
+    theme: {
+      color: "#2563eb"
     }
-  }, 1000);
+  };
+
+  const rzp = new Razorpay(options);
+  rzp.on('payment.failed', function(response){
+    currentOrder.status = "Failed ❌";
+    document.getElementById("status").innerText = "Payment failed! ❌";
+    console.log("Payment failed:", response.error);
+  });
+
+  rzp.open();
 }
 
-currentOrder = generateOrder();
+// Initialize
+createOrder();
 
-document.getElementById("payButton").addEventListener("click", () => {
-  if (!document.getElementById("qr").innerHTML) {
-    alert("QR expired! Refresh page to generate a new payment.");
-    return;
-  }
-
-  window.location.href = currentOrder.upiLink;
-  document.getElementById("status").innerText = "Waiting for payment confirmation...";
-
-  setTimeout(() => {
-    orders.forEach(order => {
-      if(order.orderId === currentOrder.orderId){
-        order.status = "Paid ✅";
-      }
-    });
-    document.getElementById("status").innerText = "Payment completed successfully! ✅";
-    console.log("Order database:", orders);
-  }, 5000);
-});
-
-document.getElementById("simulateSMS").addEventListener("click", () => {
-  orders.forEach(order => {
-    if(order.orderId === currentOrder.orderId){
-      order.status = "Paid via SMS ✅";
-    }
-  });
-  document.getElementById("status").innerText = "Payment confirmed via SMS!";
-  console.log("Order database after SMS:", orders);
-});
+// Event listener
+document.getElementById("payButton").addEventListener("click", openUPIPayment);
